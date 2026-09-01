@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Painel · Estoque de Contas</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1>Painel</h1>
+    <p>Visão geral do estoque</p>
+  </div>
+
+  <main>
+    <div class="stat-grid" id="stats">
+      <div class="stat-card"><div class="value">—</div><div class="label">Carregando...</div></div>
+    </div>
+
+    <div class="section-title">Últimas movimentações</div>
+    <div class="ledger" id="recent-history">
+      <div class="empty">Carregando...</div>
+    </div>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    renderNav("dashboard");
+    requireSession();
+
+    async function loadStats() {
+      const s = await api("/api/stats");
+      document.getElementById("stats").innerHTML = `
+        <div class="stat-card wide accent">
+          <div class="value">${money(s.valorDisponivel)}</div>
+          <div class="label">Valor em estoque disponível (total: ${money(s.valorTotal)})</div>
+        </div>
+        <div class="stat-card"><div class="value">${s.total}</div><div class="label">Total de contas</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--green)">${s.disponiveis}</div><div class="label">Disponíveis</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--amber)">${s.reservadas}</div><div class="label">Reservadas</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--red)">${s.vendidas}</div><div class="label">Vendidas</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--teal)">${s.brindes}</div><div class="label">Brindes</div></div>
+      `;
+    }
+
+    async function loadHistory() {
+      const { history } = await api("/api/history?limit=15");
+      const el = document.getElementById("recent-history");
+      if (!history.length) {
+        el.innerHTML = `<div class="empty">Nenhuma movimentação ainda.</div>`;
+        return;
+      }
+      el.innerHTML = history
+        .slice(0, 15)
+        .map(
+          (h) => `
+        <div class="ledger-row">
+          <div class="info">
+            <div class="game">${h.game || "(conta removida)"} ${h.username ? `· ${h.username}` : ""}</div>
+            <div class="username">${h.action}${h.previous_status ? ` · ${h.previous_status} → ${h.new_status ?? "-"}` : ""}</div>
+          </div>
+          <div class="right"><div class="price">${formatDate(h.created_at)}</div></div>
+        </div>`
+        )
+        .join("");
+    }
+
+    loadStats().catch(console.error);
+    loadHistory().catch(console.error);
+  </script>
+</body>
+</html>

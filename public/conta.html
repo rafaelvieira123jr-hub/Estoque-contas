@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Conta · Estoque de Contas</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1 id="title">Conta</h1>
+    <p id="subtitle">Carregando...</p>
+  </div>
+
+  <main id="content">
+    <div class="empty">Carregando...</div>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    renderNav("estoque");
+    requireSession();
+
+    const id = new URLSearchParams(window.location.search).get("id");
+    let account = null;
+
+    async function load() {
+      if (!id) { document.getElementById("content").innerHTML = `<div class="empty">ID não informado.</div>`; return; }
+      const { account: a } = await api(`/api/accounts/${id}`);
+      account = a;
+      render();
+    }
+
+    function render() {
+      document.getElementById("title").textContent = account.game;
+      document.getElementById("subtitle").textContent = account.username;
+
+      document.getElementById("content").innerHTML = `
+        <span class="status-pill status-${account.status}">${account.status}</span>
+
+        <div class="detail-grid">
+          <div class="detail-item"><div class="k">Preço</div><div class="v">${money(account.price)}</div></div>
+          <div class="detail-item"><div class="k">ID</div><div class="v">${account.id.slice(0, 8)}</div></div>
+          <div class="detail-item"><div class="k">Nível / progresso</div><div class="v">${account.level || "-"}</div></div>
+          <div class="detail-item"><div class="k">Criada em</div><div class="v">${formatDate(account.created_at)}</div></div>
+        </div>
+
+        <div class="section-title">Senha</div>
+        <div class="password-row">
+          <span id="pw-value" style="flex:1; overflow-x:auto;">••••••••</span>
+          <button id="reveal-btn" type="button">Mostrar</button>
+        </div>
+
+        <div class="section-title">Conteúdo da conta</div>
+        <div class="field"><textarea id="contents" readonly>${account.contents || ""}</textarea></div>
+
+        <div class="section-title">Observações</div>
+        <div class="field"><textarea id="notes" readonly>${account.notes || ""}</textarea></div>
+
+        <div class="section-title">Alterar status</div>
+        <div class="filters">
+          ${["DISPONIVEL", "RESERVADA", "VENDIDA", "BRINDE"]
+            .map((s) => `<div class="chip ${s === account.status ? "active" : ""}" data-status="${s}">${s}</div>`)
+            .join("")}
+        </div>
+
+        <div class="field" style="margin-top:20px;">
+          <button class="secondary" id="edit-btn" type="button">Editar campos</button>
+        </div>
+        <div class="field">
+          <button class="secondary danger" id="delete-btn" type="button">Excluir conta</button>
+        </div>
+      `;
+
+      document.getElementById("reveal-btn").addEventListener("click", revealPassword);
+      document.querySelectorAll(".filters .chip").forEach((chip) => {
+        chip.addEventListener("click", () => changeStatus(chip.dataset.status));
+      });
+      document.getElementById("delete-btn").addEventListener("click", removeAccount);
+      document.getElementById("edit-btn").addEventListener("click", enableEdit);
+    }
+
+    async function revealPassword() {
+      const { password } = await api(`/api/accounts/${id}/password`);
+      document.getElementById("pw-value").textContent = password;
+    }
+
+    async function changeStatus(newStatus) {
+      if (newStatus === account.status) return;
+      if (!confirm(`Marcar esta conta como ${newStatus}?`)) return;
+      const { account: updated } = await api(`/api/accounts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus }),
+      });
+      account = updated;
+      render();
+    }
+
+    async function removeAccount() {
+      if (!confirm("Excluir esta conta permanentemente? Isso não pode ser desfeito.")) return;
+      await api(`/api/accounts/${id}`, { method: "DELETE" });
+      window.location.href = "/estoque.html";
+    }
+
+    function enableEdit() {
+      document.getElementById("contents").readOnly = false;
+      document.getElementById("notes").readOnly = false;
+      const btn = document.getElementById("edit-btn");
+      btn.textContent = "Salvar alterações";
+      btn.onclick = saveEdit;
+    }
+
+    async function saveEdit() {
+      const contents = document.getElementById("contents").value;
+      const notes = document.getElementById("notes").value;
+      const { account: updated } = await api(`/api/accounts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ contents, notes }),
+      });
+      account = updated;
+      render();
+    }
+
+    load().catch((e) => {
+      document.getElementById("content").innerHTML = `<div class="empty">${e.message}</div>`;
+    });
+  </script>
+</body>
+</html>

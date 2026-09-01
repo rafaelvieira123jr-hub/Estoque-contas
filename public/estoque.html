@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Estoque · Estoque de Contas</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1>Estoque</h1>
+    <p id="count-label">Carregando...</p>
+  </div>
+
+  <main>
+    <div class="field">
+      <input type="search" id="search" placeholder="Buscar por jogo ou login..." />
+    </div>
+
+    <div class="filters" id="status-filters">
+      <div class="chip active" data-status="">Todos</div>
+      <div class="chip" data-status="DISPONIVEL">Disponível</div>
+      <div class="chip" data-status="RESERVADA">Reservada</div>
+      <div class="chip" data-status="VENDIDA">Vendida</div>
+      <div class="chip" data-status="BRINDE">Brinde</div>
+    </div>
+
+    <div class="field">
+      <input type="number" id="max-price" placeholder="Preço máximo (opcional)" min="0" step="0.01" />
+    </div>
+
+    <div class="ledger" id="list">
+      <div class="empty">Carregando...</div>
+    </div>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    renderNav("estoque");
+    requireSession();
+
+    let currentStatus = "";
+    let searchTimer = null;
+
+    async function loadList() {
+      const search = document.getElementById("search").value.trim();
+      const maxPrice = document.getElementById("max-price").value;
+      const params = new URLSearchParams();
+      if (currentStatus) params.set("status", currentStatus);
+      if (search) params.set("search", search);
+      if (maxPrice) params.set("max_price", maxPrice);
+
+      const { accounts } = await api(`/api/accounts?${params.toString()}`);
+      document.getElementById("count-label").textContent = `${accounts.length} conta(s)`;
+
+      const listEl = document.getElementById("list");
+      if (!accounts.length) {
+        listEl.innerHTML = `<div class="empty">Nenhuma conta encontrada com esses filtros.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = accounts
+        .map(
+          (a) => `
+        <a class="ledger-row" href="/conta.html?id=${a.id}">
+          <div class="info">
+            <div class="game">${a.game}</div>
+            <div class="username">${a.username}</div>
+          </div>
+          <div class="right">
+            <div class="price">${money(a.price)}</div>
+            <span class="status-pill status-${a.status}">${a.status}</span>
+          </div>
+        </a>`
+        )
+        .join("");
+    }
+
+    document.getElementById("search").addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadList, 300);
+    });
+
+    document.getElementById("max-price").addEventListener("change", loadList);
+
+    document.getElementById("status-filters").addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      currentStatus = chip.dataset.status;
+      loadList();
+    });
+
+    loadList().catch(console.error);
+  </script>
+</body>
+</html>

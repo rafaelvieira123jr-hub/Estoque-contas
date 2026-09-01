@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>IA · Estoque de Contas</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1>Comandos por IA</h1>
+    <p>Descreva o que você quer fazer com o estoque</p>
+  </div>
+
+  <main>
+    <div class="ai-input-row">
+      <input id="cmd-input" placeholder='Ex: "me dê uma conta de Blox Fruits por até R$3"' />
+      <button id="send-btn" type="button">Enviar</button>
+    </div>
+
+    <div id="log"></div>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    renderNav("ia");
+    requireSession();
+
+    const logEl = document.getElementById("log");
+    const input = document.getElementById("cmd-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    function renderEntry({ text, summary, data, error }) {
+      const wrap = document.createElement("div");
+      wrap.className = "ai-log";
+      wrap.innerHTML = `
+        <div class="cmd">&gt; ${text}</div>
+        <div class="resp ${error ? "error" : ""}">${error || summary}</div>
+        ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}
+      `;
+      logEl.prepend(wrap);
+    }
+
+    async function send() {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      sendBtn.disabled = true;
+      try {
+        const res = await api("/api/ai/command", { method: "POST", body: JSON.stringify({ text }) });
+        renderEntry({ text, summary: res.summary, data: res.data });
+      } catch (err) {
+        renderEntry({ text, error: err.message });
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener("click", send);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+
+    async function loadHistory() {
+      const { history } = await api("/api/ai/history");
+      history
+        .slice()
+        .reverse()
+        .forEach((h) => {
+          let data = null;
+          try { data = h.parsed_action ? JSON.parse(h.parsed_action) : null; } catch {}
+          renderEntry({
+            text: h.input_text,
+            summary: h.success ? h.result_summary : null,
+            error: h.success ? null : h.result_summary,
+            data,
+          });
+        });
+    }
+
+    loadHistory().catch(console.error);
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Entrar · Estoque de Contas</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Estoque de Contas</h1>
+      <p>Painel privado. Informe a senha de acesso.</p>
+      <form id="login-form">
+        <div class="field">
+          <input type="password" id="password" placeholder="Senha" autofocus required />
+        </div>
+        <button class="primary" type="submit">Entrar</button>
+        <div class="login-error" id="error"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const password = document.getElementById("password").value;
+      const errorEl = document.getElementById("error");
+      errorEl.textContent = "";
+      try {
+        await api("/api/login", { method: "POST", body: JSON.stringify({ password }) });
+        window.location.href = "/index.html";
+      } catch (err) {
+        errorEl.textContent = "Senha incorreta.";
+      }
+    });
+  </script>
+</body>
+</html>

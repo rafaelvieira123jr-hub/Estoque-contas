@@ -1,0 +1,26 @@
+name = "estoque-contas"
+main = "src/index.ts"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["nodejs_compat"]
+
+# Serve the frontend (public/) directly from the Worker.
+# Any request that doesn't match a route in src/index.ts falls
+# through to these static files. No separate Cloudflare Pages
+# project is needed.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 database binding.
+# Run `npm run db:create` first, then paste the returned
+# database_id below before deploying.
+[[d1_databases]]
+binding = "DB"
+database_name = "estoque_contas_db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Secrets (set with `wrangler secret put NAME`, never written here):
+#   PANEL_PASSWORD_HASH  -> sha256 hash (hex) of your login password
+#   SESSION_SECRET       -> random 32+ char string, signs the login cookie
+#   CRYPTO_KEY           -> 32-byte base64 key, encrypts stored account passwords
+#   GROQ_API_KEY         -> your Groq API key
